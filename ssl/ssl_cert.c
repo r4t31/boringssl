@@ -366,7 +366,156 @@ err:
 	if (ret->ecdh_tmp != NULL)
 		EC_KEY_free(ret->ecdh_tmp);
 
-	ssl_cert_clear_certs(ret);
+int SSL_get_ex_data_X509_STORE_CTX_idx(void) {
+  static int ssl_x509_store_ctx_idx = -1;
+  int got_write_lock = 0;
+
+  CRYPTO_r_lock(CRYPTO_LOCK_SSL_CTX);
+
+  if (ssl_x509_store_ctx_idx < 0) {
+    CRYPTO_r_unlock(CRYPTO_LOCK_SSL_CTX);
+    CRYPTO_w_lock(CRYPTO_LOCK_SSL_CTX);
+    got_write_lock = 1;
+
+    if (ssl_x509_store_ctx_idx < 0) {
+      ssl_x509_store_ctx_idx = X509_STORE_CTX_get_ex_new_index(
+          0, "SSL for verify callback", NULL, NULL, NULL);
+    }
+  }
+
+  if (got_write_lock) {
+    CRYPTO_w_unlock(CRYPTO_LOCK_SSL_CTX);
+  } else {
+    CRYPTO_r_unlock(CRYPTO_LOCK_SSL_CTX);
+  }
+
+  return ssl_x509_store_ctx_idx;
+}
+
+CERT *ssl_cert_new(void) {
+  CERT *ret;
+
+  ret = (CERT *)OPENSSL_malloc(sizeof(CERT));
+  if (ret == NULL) {
+    OPENSSL_PUT_ERROR(SSL, ssl_cert_new, ERR_R_MALLOC_FAILURE);
+    return NULL;
+  }
+  memset(ret, 0, sizeof(CERT));
+
+  ret->key = &ret->pkeys[SSL_PKEY_RSA_ENC];
+  return ret;
+}
+
+CERT *ssl_cert_dup(CERT *cert) {
+  CERT *ret;
+  int i;
+
+  ret = (CERT *)OPENSSL_malloc(sizeof(CERT));
+  if (ret == NULL) {
+    OPENSSL_PUT_ERROR(SSL, ssl_cert_dup, ERR_R_MALLOC_FAILURE);
+    return NULL;
+  }
+  memset(ret, 0, sizeof(CERT));
+
+  ret->key = &ret->pkeys[cert->key - &cert->pkeys[0]];
+  /* or ret->key = ret->pkeys + (cert->key - cert->pkeys), if you find that
+   * more readable */
+
+  ret->mask_k = cert->mask_k;
+  ret->mask_a = cert->mask_a;
+
+  if (cert->dh_tmp != NULL) {
+    ret->dh_tmp = DHparams_dup(cert->dh_tmp);
+    if (ret->dh_tmp == NULL) {
+      OPENSSL_PUT_ERROR(SSL, ssl_cert_dup, ERR_R_DH_LIB);
+      goto err;
+    }
+    if (cert->dh_tmp->priv_key) {
+      BIGNUM *b = BN_dup(cert->dh_tmp->priv_key);
+      if (!b) {
+        OPENSSL_PUT_ERROR(SSL, ssl_cert_dup, ERR_R_BN_LIB);
+        goto err;
+      }
+      ret->dh_tmp->priv_key = b;
+    }
+    if (cert->dh_tmp->pub_key) {
+      BIGNUM *b = BN_dup(cert->dh_tmp->pub_key);
+      if (!b) {
+        OPENSSL_PUT_ERROR(SSL, ssl_cert_dup, ERR_R_BN_LIB);
+        goto err;
+      }
+      ret->dh_tmp->pub_key = b;
+    }
+  }
+  ret->dh_tmp_cb = cert->dh_tmp_cb;
+
+  ret->ecdh_nid = cert->ecdh_nid;
+  ret->ecdh_tmp_cb = cert->ecdh_tmp_cb;
+
+  for (i = 0; i < SSL_PKEY_NUM; i++) {
+    CERT_PKEY *cpk = cert->pkeys + i;
+    CERT_PKEY *rpk = ret->pkeys + i;
+    if (cpk->x509 != NULL) {
+      rpk->x509 = X509_up_ref(cpk->x509);
+    }
+
+    if (cpk->privatekey != NULL) {
+      rpk->privatekey = EVP_PKEY_dup(cpk->privatekey);
+    }
+
+    if (cpk->chain) {
+      rpk->chain = X509_chain_up_ref(cpk->chain);
+      if (!rpk->chain) {
+        OPENSSL_PUT_ERROR(SSL, ssl_cert_dup, ERR_R_MALLOC_FAILURE);
+        goto err;
+      }
+    }
+  }
+
+  /* Copy over signature algorithm configuration. */
+  if (cert->conf_sigalgs) {
+    ret->conf_sigalgs = BUF_memdup(cert->conf_sigalgs, cert->conf_sigalgslen);
+    if (!ret->conf_sigalgs) {
+      goto err;
+    }
+    ret->conf_sigalgslen = cert->conf_sigalgslen;
+  }
+
+  if (cert->client_sigalgs) {
+    ret->client_sigalgs = BUF_memdup(cert->client_sigalgs,
+                                     cert->client_sigalgslen);
+    if (!ret->client_sigalgs) {
+      goto err;
+    }
+    ret->client_sigalgslen = cert->client_sigalgslen;
+  }
+
+  /* Copy any custom client certificate types */
+  if (cert->client_certificate_types) {
+    ret->client_certificate_types = BUF_memdup(
+        cert->client_certificate_types, cert->num_client_certificate_types);
+    if (!ret->client_certificate_types) {
+      goto err;
+    }
+    ret->num_client_certificate_types = cert->num_client_certificate_types;
+  }
+
+  ret->cert_flags = cert->cert_flags;
+
+  ret->cert_cb = cert->cert_cb;
+  ret->cert_cb_arg = cert->cert_cb_arg;
+
+  if (cert->verify_store) {
+    CRYPTO_add(&cert->verify_store->references, 1, CRYPTO_LOCK_X509_STORE);
+    ret->verify_store = cert->verify_store;
+  }
+
+  if (cert->chain_store) {
+    CRYPTO_add(&cert->chain_store->references, 1, CRYPTO_LOCK_X509_STORE);
+    ret->chain_store = cert->chain_store;
+  }
+
+  return ret;
 
 	return NULL;
 	}

@@ -1166,492 +1166,396 @@ f_err:
 		ssl3_send_alert(s,SSL3_AL_FATAL,al);
 		}
 err:
-	if (ciphers != NULL) sk_SSL_CIPHER_free(ciphers);
-	return ret;
-	}
+  if (ciphers != NULL) {
+    sk_SSL_CIPHER_free(ciphers);
+  }
+  return ret;
+}
 
-int ssl3_send_server_hello(SSL *s)
-	{
-	unsigned char *buf;
-	unsigned char *p,*d;
-	int sl;
-	unsigned long l;
+int ssl3_send_server_hello(SSL *s) {
+  uint8_t *buf;
+  uint8_t *p, *d;
+  int sl;
+  unsigned long l;
 
-	if (s->state == SSL3_ST_SW_SRVR_HELLO_A)
-		{
-		/* We only accept ChannelIDs on connections with ECDHE in order
-		 * to avoid a known attack while we fix ChannelID itself. */
-		if (s->s3 &&
-		    s->s3->tlsext_channel_id_valid &&
-		    (s->s3->tmp.new_cipher->algorithm_mkey & SSL_kEECDH) == 0)
-			s->s3->tlsext_channel_id_valid = 0;
+  if (s->state == SSL3_ST_SW_SRVR_HELLO_A) {
+    /* We only accept ChannelIDs on connections with ECDHE in order to avoid a
+     * known attack while we fix ChannelID itself. */
+    if (s->s3->tlsext_channel_id_valid &&
+        (s->s3->tmp.new_cipher->algorithm_mkey & SSL_kECDHE) == 0) {
+      s->s3->tlsext_channel_id_valid = 0;
+    }
 
-		/* If this is a resumption and the original handshake didn't
-		 * support ChannelID then we didn't record the original
-		 * handshake hashes in the session and so cannot resume with
-		 * ChannelIDs. */
-		if (s->hit &&
-		    s->s3->tlsext_channel_id_new &&
-		    s->session->original_handshake_hash_len == 0)
-			s->s3->tlsext_channel_id_valid = 0;
+    /* If this is a resumption and the original handshake didn't support
+     * ChannelID then we didn't record the original handshake hashes in the
+     * session and so cannot resume with ChannelIDs. */
+    if (s->hit && s->s3->tlsext_channel_id_new &&
+        s->session->original_handshake_hash_len == 0) {
+      s->s3->tlsext_channel_id_valid = 0;
+    }
 
-		buf=(unsigned char *)s->init_buf->data;
-		/* Do the message type and length last */
-		d=p= ssl_handshake_start(s);
+    buf = (uint8_t *)s->init_buf->data;
+    /* Do the message type and length last */
+    d = p = ssl_handshake_start(s);
 
-		*(p++)=s->version>>8;
-		*(p++)=s->version&0xff;
+    *(p++) = s->version >> 8;
+    *(p++) = s->version & 0xff;
 
-		/* Random stuff */
-		memcpy(p,s->s3->server_random,SSL3_RANDOM_SIZE);
-		p+=SSL3_RANDOM_SIZE;
+    /* Random stuff */
+    if (!ssl_fill_hello_random(s, 1, s->s3->server_random, SSL3_RANDOM_SIZE)) {
+      OPENSSL_PUT_ERROR(SSL, ssl3_send_server_hello, ERR_R_INTERNAL_ERROR);
+      return -1;
+    }
+    memcpy(p, s->s3->server_random, SSL3_RANDOM_SIZE);
+    p += SSL3_RANDOM_SIZE;
 
-		/* There are several cases for the session ID to send
-		 * back in the server hello:
-		 * - For session reuse from the session cache,
-		 *   we send back the old session ID.
-		 * - If stateless session reuse (using a session ticket)
-		 *   is successful, we send back the client's "session ID"
-		 *   (which doesn't actually identify the session).
-		 * - If it is a new session, we send back the new
-		 *   session ID.
-		 * - However, if we want the new session to be single-use,
-		 *   we send back a 0-length session ID.
-		 * s->hit is non-zero in either case of session reuse,
-		 * so the following won't overwrite an ID that we're supposed
-		 * to send back.
-		 */
-		if (!(s->ctx->session_cache_mode & SSL_SESS_CACHE_SERVER)
-			&& !s->hit)
-			s->session->session_id_length=0;
+    /* There are several cases for the session ID to send
+     * back in the server hello:
+     * - For session reuse from the session cache, we send back the old session
+     *   ID.
+     * - If stateless session reuse (using a session ticket) is successful, we
+     *   send back the client's "session ID" (which doesn't actually identify
+     *   the session).
+     * - If it is a new session, we send back the new session ID.
+     * - However, if we want the new session to be single-use, we send back a
+     *   0-length session ID.
+     * s->hit is non-zero in either case of session reuse, so the following
+     * won't overwrite an ID that we're supposed to send back. */
+    if (!(s->ctx->session_cache_mode & SSL_SESS_CACHE_SERVER) && !s->hit) {
+      s->session->session_id_length = 0;
+    }
 
-		sl=s->session->session_id_length;
-		if (sl > (int)sizeof(s->session->session_id))
-			{
-			OPENSSL_PUT_ERROR(SSL, ssl3_send_server_hello, ERR_R_INTERNAL_ERROR);
-			return -1;
-			}
-		*(p++)=sl;
-		memcpy(p,s->session->session_id,sl);
-		p+=sl;
+    sl = s->session->session_id_length;
+    if (sl > (int)sizeof(s->session->session_id)) {
+      OPENSSL_PUT_ERROR(SSL, ssl3_send_server_hello, ERR_R_INTERNAL_ERROR);
+      return -1;
+    }
+    *(p++) = sl;
+    memcpy(p, s->session->session_id, sl);
+    p += sl;
 
-		/* put the cipher */
-                s2n(ssl3_get_cipher_value(s->s3->tmp.new_cipher), p);
+    /* put the cipher */
+    s2n(ssl3_get_cipher_value(s->s3->tmp.new_cipher), p);
 
-		/* put the compression method */
-			*(p++)=0;
-		if (ssl_prepare_serverhello_tlsext(s) <= 0)
-			{
-			OPENSSL_PUT_ERROR(SSL, ssl3_send_server_hello, SSL_R_SERVERHELLO_TLSEXT);
-			return -1;
-			}
-		if ((p = ssl_add_serverhello_tlsext(s, p, buf+SSL3_RT_MAX_PLAIN_LENGTH)) == NULL)
-			{
-			OPENSSL_PUT_ERROR(SSL, ssl3_send_server_hello, ERR_R_INTERNAL_ERROR);
-			return -1;
-			}
-		/* do the header */
-		l=(p-d);
-		ssl_set_handshake_header(s, SSL3_MT_SERVER_HELLO, l);
-		s->state=SSL3_ST_SW_SRVR_HELLO_B;
-		}
+    /* put the compression method */
+    *(p++) = 0;
+    if (ssl_prepare_serverhello_tlsext(s) <= 0) {
+      OPENSSL_PUT_ERROR(SSL, ssl3_send_server_hello, SSL_R_SERVERHELLO_TLSEXT);
+      return -1;
+    }
+    p = ssl_add_serverhello_tlsext(s, p, buf + SSL3_RT_MAX_PLAIN_LENGTH);
+    if (p == NULL) {
+      OPENSSL_PUT_ERROR(SSL, ssl3_send_server_hello, ERR_R_INTERNAL_ERROR);
+      return -1;
+    }
 
-	/* SSL3_ST_SW_SRVR_HELLO_B */
-	return ssl_do_write(s);
-	}
+    /* do the header */
+    l = (p - d);
+    if (!ssl_set_handshake_header(s, SSL3_MT_SERVER_HELLO, l)) {
+      return -1;
+    }
+    s->state = SSL3_ST_SW_SRVR_HELLO_B;
+  }
 
-int ssl3_send_server_done(SSL *s)
-	{
+  /* SSL3_ST_SW_SRVR_HELLO_B */
+  return ssl_do_write(s);
+}
 
-	if (s->state == SSL3_ST_SW_SRVR_DONE_A)
-		{
-		ssl_set_handshake_header(s, SSL3_MT_SERVER_DONE, 0);
-		s->state = SSL3_ST_SW_SRVR_DONE_B;
-		}
+int ssl3_send_server_done(SSL *s) {
+  if (s->state == SSL3_ST_SW_SRVR_DONE_A) {
+    if (!ssl_set_handshake_header(s, SSL3_MT_SERVER_DONE, 0)) {
+      return -1;
+    }
+    s->state = SSL3_ST_SW_SRVR_DONE_B;
+  }
 
-	/* SSL3_ST_SW_SRVR_DONE_B */
-	return ssl_do_write(s);
-	}
+  /* SSL3_ST_SW_SRVR_DONE_B */
+  return ssl_do_write(s);
+}
 
-int ssl3_send_server_key_exchange(SSL *s)
-	{
-	unsigned char *q;
-	int j,num;
-	unsigned char md_buf[MD5_DIGEST_LENGTH+SHA_DIGEST_LENGTH];
-	unsigned int u;
-	DH *dh=NULL,*dhp;
-	EC_KEY *ecdh=NULL, *ecdhp;
-	unsigned char *encodedPoint = NULL;
-	int encodedlen = 0;
-	int curve_id = 0;
-	BN_CTX *bn_ctx = NULL; 
-	const char* psk_identity_hint = NULL;
-	size_t psk_identity_hint_len = 0;
-	EVP_PKEY *pkey;
-	const EVP_MD *md = NULL;
-	unsigned char *p,*d;
-	int al,i;
-	unsigned long alg_k;
-	unsigned long alg_a;
-	int n;
-	CERT *cert;
-	BIGNUM *r[4];
-	int nr[4],kn;
-	BUF_MEM *buf;
-	EVP_MD_CTX md_ctx;
+int ssl3_send_server_key_exchange(SSL *s) {
+  DH *dh = NULL, *dhp;
+  EC_KEY *ecdh = NULL;
+  uint8_t *encodedPoint = NULL;
+  int encodedlen = 0;
+  uint16_t curve_id = 0;
+  BN_CTX *bn_ctx = NULL;
+  const char *psk_identity_hint = NULL;
+  size_t psk_identity_hint_len = 0;
+  EVP_PKEY *pkey;
+  uint8_t *p, *d;
+  int al, i;
+  unsigned long alg_k;
+  unsigned long alg_a;
+  int n;
+  CERT *cert;
+  BIGNUM *r[4];
+  int nr[4], kn;
+  BUF_MEM *buf;
+  EVP_MD_CTX md_ctx;
 
-	EVP_MD_CTX_init(&md_ctx);
-	if (s->state == SSL3_ST_SW_KEY_EXCH_A)
-		{
-		alg_k=s->s3->tmp.new_cipher->algorithm_mkey;
-		alg_a=s->s3->tmp.new_cipher->algorithm_auth;
-		cert=s->cert;
+  EVP_MD_CTX_init(&md_ctx);
+  if (s->state == SSL3_ST_SW_KEY_EXCH_A) {
+    alg_k = s->s3->tmp.new_cipher->algorithm_mkey;
+    alg_a = s->s3->tmp.new_cipher->algorithm_auth;
+    cert = s->cert;
 
-		buf=s->init_buf;
+    buf = s->init_buf;
 
-		r[0]=r[1]=r[2]=r[3]=NULL;
-		n=0;
-		if (alg_a & SSL_aPSK)
-			{
-			/* size for PSK identity hint */
-			psk_identity_hint = s->session->psk_identity_hint;
-			if (psk_identity_hint)
-				psk_identity_hint_len = strlen(psk_identity_hint);
-			else
-				psk_identity_hint_len = 0;
-			n+=2+psk_identity_hint_len;
-			}
-		if (alg_k & SSL_kEDH)
-			{
-			dhp=cert->dh_tmp;
-			if ((dhp == NULL) && (s->cert->dh_tmp_cb != NULL))
-				dhp=s->cert->dh_tmp_cb(s, 0, 1024);
-			if (dhp == NULL)
-				{
-				al=SSL_AD_HANDSHAKE_FAILURE;
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, SSL_R_MISSING_TMP_DH_KEY);
-				goto f_err;
-				}
+    r[0] = r[1] = r[2] = r[3] = NULL;
+    n = 0;
+    if (alg_a & SSL_aPSK) {
+      /* size for PSK identity hint */
+      psk_identity_hint = s->psk_identity_hint;
+      if (psk_identity_hint) {
+        psk_identity_hint_len = strlen(psk_identity_hint);
+      } else {
+        psk_identity_hint_len = 0;
+      }
+      n += 2 + psk_identity_hint_len;
+    }
 
-			if (s->s3->tmp.dh != NULL)
-				{
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_INTERNAL_ERROR);
-				goto err;
-				}
+    if (alg_k & SSL_kDHE) {
+      dhp = cert->dh_tmp;
+      if (dhp == NULL && s->cert->dh_tmp_cb != NULL) {
+        dhp = s->cert->dh_tmp_cb(s, 0, 1024);
+      }
+      if (dhp == NULL) {
+        al = SSL_AD_HANDSHAKE_FAILURE;
+        OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange,
+                          SSL_R_MISSING_TMP_DH_KEY);
+        goto f_err;
+      }
 
-			if ((dh=DHparams_dup(dhp)) == NULL)
-				{
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_DH_LIB);
-				goto err;
-				}
+      if (s->s3->tmp.dh != NULL) {
+        OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange,
+                          ERR_R_INTERNAL_ERROR);
+        goto err;
+      }
 
-			s->s3->tmp.dh=dh;
-			if ((dhp->pub_key == NULL ||
-			     dhp->priv_key == NULL ||
-			     (s->options & SSL_OP_SINGLE_DH_USE)))
-				{
-				if(!DH_generate_key(dh))
-				    {
-				    OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_DH_LIB);
-				    goto err;
-				    }
-				}
-			else
-				{
-				dh->pub_key=BN_dup(dhp->pub_key);
-				dh->priv_key=BN_dup(dhp->priv_key);
-				if ((dh->pub_key == NULL) ||
-					(dh->priv_key == NULL))
-					{
-					OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_DH_LIB);
-					goto err;
-					}
-				}
-			r[0]=dh->p;
-			r[1]=dh->g;
-			r[2]=dh->pub_key;
-			}
-		else
-		if (alg_k & SSL_kEECDH)
-			{
-			const EC_GROUP *group;
+      dh = DHparams_dup(dhp);
+      if (dh == NULL) {
+        OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_DH_LIB);
+        goto err;
+      }
 
-			ecdhp=cert->ecdh_tmp;
-			if (s->cert->ecdh_tmp_auto)
-				{
-				/* Get NID of appropriate shared curve */
-				int nid = tls1_get_shared_curve(s);
-				if (nid != NID_undef)
-					ecdhp = EC_KEY_new_by_curve_name(nid);
-				}
-			else if ((ecdhp == NULL) && s->cert->ecdh_tmp_cb)
-				{
-				ecdhp = s->cert->ecdh_tmp_cb(s, 0, 1024);
-				}
-			if (ecdhp == NULL)
-				{
-				al=SSL_AD_HANDSHAKE_FAILURE;
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, SSL_R_MISSING_TMP_ECDH_KEY);
-				goto f_err;
-				}
+      s->s3->tmp.dh = dh;
+      if (dhp->pub_key == NULL || dhp->priv_key == NULL ||
+          (s->options & SSL_OP_SINGLE_DH_USE)) {
+        if (!DH_generate_key(dh)) {
+          OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_DH_LIB);
+          goto err;
+        }
+      } else {
+        dh->pub_key = BN_dup(dhp->pub_key);
+        dh->priv_key = BN_dup(dhp->priv_key);
+        if (dh->pub_key == NULL || dh->priv_key == NULL) {
+          OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_DH_LIB);
+          goto err;
+        }
+      }
 
-			if (s->s3->tmp.ecdh != NULL)
-				{
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_INTERNAL_ERROR);
-				goto err;
-				}
+      r[0] = dh->p;
+      r[1] = dh->g;
+      r[2] = dh->pub_key;
+    } else if (alg_k & SSL_kECDHE) {
+      /* Determine the curve to use. */
+      int nid = NID_undef;
+      if (cert->ecdh_nid != NID_undef) {
+        nid = cert->ecdh_nid;
+      } else if (cert->ecdh_tmp_cb != NULL) {
+        /* Note: |ecdh_tmp_cb| does NOT pass ownership of the result
+         * to the caller. */
+        EC_KEY *template = s->cert->ecdh_tmp_cb(s, 0, 1024);
+        if (template != NULL && EC_KEY_get0_group(template) != NULL) {
+          nid = EC_GROUP_get_curve_name(EC_KEY_get0_group(template));
+        }
+      } else {
+        nid = tls1_get_shared_curve(s);
+      }
+      if (nid == NID_undef) {
+        al = SSL_AD_HANDSHAKE_FAILURE;
+        OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange,
+                          SSL_R_MISSING_TMP_ECDH_KEY);
+        goto f_err;
+      }
 
-			/* Duplicate the ECDH structure. */
-			if (ecdhp == NULL)
-				{
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_ECDH_LIB);
-				goto err;
-				}
-			if (s->cert->ecdh_tmp_auto)
-				ecdh = ecdhp;
-			else if ((ecdh = EC_KEY_dup(ecdhp)) == NULL)
-				{
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_ECDH_LIB);
-				goto err;
-				}
+      if (s->s3->tmp.ecdh != NULL) {
+        OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange,
+                          ERR_R_INTERNAL_ERROR);
+        goto err;
+      }
+      ecdh = EC_KEY_new_by_curve_name(nid);
+      if (ecdh == NULL) {
+        goto err;
+      }
+      s->s3->tmp.ecdh = ecdh;
 
-			s->s3->tmp.ecdh=ecdh;
-			if ((EC_KEY_get0_public_key(ecdh) == NULL) ||
-			    (EC_KEY_get0_private_key(ecdh) == NULL) ||
-			    (s->options & SSL_OP_SINGLE_ECDH_USE))
-				{
-				if(!EC_KEY_generate_key(ecdh))
-				    {
-				    OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_ECDH_LIB);
-				    goto err;
-				    }
-				}
+      if (!EC_KEY_generate_key(ecdh)) {
+        OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_ECDH_LIB);
+        goto err;
+      }
 
-			if (((group = EC_KEY_get0_group(ecdh)) == NULL) ||
-			    (EC_KEY_get0_public_key(ecdh)  == NULL) ||
-			    (EC_KEY_get0_private_key(ecdh) == NULL))
-				{
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_ECDH_LIB);
-				goto err;
-				}
+      /* We only support ephemeral ECDH keys over named (not generic) curves. */
+      const EC_GROUP *group = EC_KEY_get0_group(ecdh);
+      if (!tls1_ec_nid2curve_id(&curve_id, EC_GROUP_get_curve_name(group))) {
+        OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange,
+                          SSL_R_UNSUPPORTED_ELLIPTIC_CURVE);
+        goto err;
+      }
 
-			/* XXX: For now, we only support ephemeral ECDH
-			 * keys over named (not generic) curves. For 
-			 * supported named curves, curve_id is non-zero.
-			 */
-			if ((curve_id = 
-			    tls1_ec_nid2curve_id(EC_GROUP_get_curve_name(group)))
-			    == 0)
-				{
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, SSL_R_UNSUPPORTED_ELLIPTIC_CURVE);
-				goto err;
-				}
+      /* Encode the public key. First check the size of encoding and allocate
+       * memory accordingly. */
+      encodedlen =
+          EC_POINT_point2oct(group, EC_KEY_get0_public_key(ecdh),
+                             POINT_CONVERSION_UNCOMPRESSED, NULL, 0, NULL);
 
-			/* Encode the public key.
-			 * First check the size of encoding and
-			 * allocate memory accordingly.
-			 */
-			encodedlen = EC_POINT_point2oct(group, 
-			    EC_KEY_get0_public_key(ecdh),
-			    POINT_CONVERSION_UNCOMPRESSED, 
-			    NULL, 0, NULL);
+      encodedPoint = (uint8_t *)OPENSSL_malloc(encodedlen * sizeof(uint8_t));
+      bn_ctx = BN_CTX_new();
+      if (encodedPoint == NULL || bn_ctx == NULL) {
+        OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange,
+                          ERR_R_MALLOC_FAILURE);
+        goto err;
+      }
 
-			encodedPoint = (unsigned char *) 
-			    OPENSSL_malloc(encodedlen*sizeof(unsigned char)); 
-			bn_ctx = BN_CTX_new();
-			if ((encodedPoint == NULL) || (bn_ctx == NULL))
-				{
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_MALLOC_FAILURE);
-				goto err;
-				}
+      encodedlen = EC_POINT_point2oct(group, EC_KEY_get0_public_key(ecdh),
+                                      POINT_CONVERSION_UNCOMPRESSED,
+                                      encodedPoint, encodedlen, bn_ctx);
 
+      if (encodedlen == 0) {
+        OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_ECDH_LIB);
+        goto err;
+      }
 
-			encodedlen = EC_POINT_point2oct(group, 
-			    EC_KEY_get0_public_key(ecdh), 
-			    POINT_CONVERSION_UNCOMPRESSED, 
-			    encodedPoint, encodedlen, bn_ctx);
+      BN_CTX_free(bn_ctx);
+      bn_ctx = NULL;
 
-			if (encodedlen == 0) 
-				{
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_ECDH_LIB);
-				goto err;
-				}
+      /* We only support named (not generic) curves in ECDH ephemeral key
+       * exchanges. In this situation, we need four additional bytes to encode
+       * the entire ServerECDHParams structure. */
+      n += 4 + encodedlen;
 
-			BN_CTX_free(bn_ctx);  bn_ctx=NULL;
+      /* We'll generate the serverKeyExchange message explicitly so we can set
+       * these to NULLs */
+      r[0] = NULL;
+      r[1] = NULL;
+      r[2] = NULL;
+      r[3] = NULL;
+    } else if (!(alg_k & SSL_kPSK)) {
+      al = SSL_AD_HANDSHAKE_FAILURE;
+      OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange,
+                        SSL_R_UNKNOWN_KEY_EXCHANGE_TYPE);
+      goto f_err;
+    }
 
-			/* XXX: For now, we only support named (not 
-			 * generic) curves in ECDH ephemeral key exchanges.
-			 * In this situation, we need four additional bytes
-			 * to encode the entire ServerECDHParams
-			 * structure. 
-			 */
-			n += 4 + encodedlen;
+    for (i = 0; i < 4 && r[i] != NULL; i++) {
+      nr[i] = BN_num_bytes(r[i]);
+      n += 2 + nr[i];
+    }
 
-			/* We'll generate the serverKeyExchange message
-			 * explicitly so we can set these to NULLs
-			 */
-			r[0]=NULL;
-			r[1]=NULL;
-			r[2]=NULL;
-			r[3]=NULL;
-			}
-		else
-		if (!(alg_k & SSL_kPSK))
-			{
-			al=SSL_AD_HANDSHAKE_FAILURE;
-			OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, SSL_R_UNKNOWN_KEY_EXCHANGE_TYPE);
-			goto f_err;
-			}
-		for (i=0; i < 4 && r[i] != NULL; i++)
-			{
-			nr[i]=BN_num_bytes(r[i]);
-			n+=2+nr[i];
-			}
+    if (ssl_cipher_has_server_public_key(s->s3->tmp.new_cipher)) {
+      pkey = ssl_get_sign_pkey(s, s->s3->tmp.new_cipher);
+      if (pkey == NULL) {
+        al = SSL_AD_DECODE_ERROR;
+        goto f_err;
+      }
+      kn = EVP_PKEY_size(pkey);
+    } else {
+      pkey = NULL;
+      kn = 0;
+    }
 
-		if (ssl_cipher_has_server_public_key(s->s3->tmp.new_cipher))
-			{
-			if ((pkey=ssl_get_sign_pkey(s,s->s3->tmp.new_cipher,&md))
-				== NULL)
-				{
-				al=SSL_AD_DECODE_ERROR;
-				goto f_err;
-				}
-			kn=EVP_PKEY_size(pkey);
-			}
-		else
-			{
-			pkey=NULL;
-			kn=0;
-			}
+    if (!BUF_MEM_grow_clean(buf, n + SSL_HM_HEADER_LENGTH(s) + kn)) {
+      OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_LIB_BUF);
+      goto err;
+    }
+    d = p = ssl_handshake_start(s);
 
-		if (!BUF_MEM_grow_clean(buf,n+SSL_HM_HEADER_LENGTH(s)+kn))
-			{
-			OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_LIB_BUF);
-			goto err;
-			}
-		d = p = ssl_handshake_start(s);
+    for (i = 0; i < 4 && r[i] != NULL; i++) {
+      s2n(nr[i], p);
+      BN_bn2bin(r[i], p);
+      p += nr[i];
+    }
 
-		for (i=0; i < 4 && r[i] != NULL; i++)
-			{
-			s2n(nr[i],p);
-			BN_bn2bin(r[i],p);
-			p+=nr[i];
-			}
+    /* Note: ECDHE PSK ciphersuites use SSL_kECDHE and SSL_aPSK. When one of
+     * them is used, the server key exchange record needs to have both the
+     * psk_identity_hint and the ServerECDHParams. */
+    if (alg_a & SSL_aPSK) {
+      /* copy PSK identity hint (if provided) */
+      s2n(psk_identity_hint_len, p);
+      if (psk_identity_hint_len > 0) {
+        memcpy(p, psk_identity_hint, psk_identity_hint_len);
+        p += psk_identity_hint_len;
+      }
+    }
 
-/* Note: ECDHE PSK ciphersuites use SSL_kEECDH and SSL_aPSK.
- * When one of them is used, the server key exchange record needs to have both
- * the psk_identity_hint and the ServerECDHParams. */
-		if (alg_a & SSL_aPSK)
-			{
-			/* copy PSK identity hint (if provided) */
-			s2n(psk_identity_hint_len, p);
-			if (psk_identity_hint_len > 0)
-				{
-				memcpy(p, psk_identity_hint, psk_identity_hint_len);
-				p+=psk_identity_hint_len;
-				}
-			}
+    if (alg_k & SSL_kECDHE) {
+      /* We only support named (not generic) curves. In this situation, the
+       * serverKeyExchange message has:
+       * [1 byte CurveType], [2 byte CurveName]
+       * [1 byte length of encoded point], followed by
+       * the actual encoded point itself. */
+      *(p++) = NAMED_CURVE_TYPE;
+      *(p++) = (uint8_t)(curve_id >> 8);
+      *(p++) = (uint8_t)(curve_id & 0xff);
+      *(p++) = encodedlen;
+      memcpy(p, encodedPoint, encodedlen);
+      p += encodedlen;
+      OPENSSL_free(encodedPoint);
+      encodedPoint = NULL;
+    }
 
-		if (alg_k & SSL_kEECDH)
-			{
-			/* XXX: For now, we only support named (not generic) curves.
-			 * In this situation, the serverKeyExchange message has:
-			 * [1 byte CurveType], [2 byte CurveName]
-			 * [1 byte length of encoded point], followed by
-			 * the actual encoded point itself
-			 */
-			*p = NAMED_CURVE_TYPE;
-			p += 1;
-			*p = 0;
-			p += 1;
-			*p = curve_id;
-			p += 1;
-			*p = encodedlen;
-			p += 1;
-			memcpy((unsigned char*)p, 
-			    (unsigned char *)encodedPoint, 
-			    encodedlen);
-			OPENSSL_free(encodedPoint);
-			encodedPoint = NULL;
-			p += encodedlen;
-			}
+    /* not anonymous */
+    if (pkey != NULL) {
+      /* n is the length of the params, they start at &(d[4]) and p points to
+       * the space at the end. */
+      const EVP_MD *md;
+      size_t sig_len = EVP_PKEY_size(pkey);
 
-		/* not anonymous */
-		if (pkey != NULL)
-			{
-			/* n is the length of the params, they start at &(d[4])
-			 * and p points to the space at the end. */
-			if (pkey->type == EVP_PKEY_RSA && !SSL_USE_SIGALGS(s))
-				{
-				q=md_buf;
-				j=0;
-				for (num=2; num > 0; num--)
-					{
-					EVP_DigestInit_ex(&md_ctx,
-						(num == 2) ? EVP_md5() : EVP_sha1(), NULL);
-					EVP_DigestUpdate(&md_ctx,&(s->s3->client_random[0]),SSL3_RANDOM_SIZE);
-					EVP_DigestUpdate(&md_ctx,&(s->s3->server_random[0]),SSL3_RANDOM_SIZE);
-					EVP_DigestUpdate(&md_ctx,d,n);
-					EVP_DigestFinal_ex(&md_ctx,q,
-						(unsigned int *)&i);
-					q+=i;
-					j+=i;
-					}
-				if (RSA_sign(NID_md5_sha1, md_buf, j,
-					&(p[2]), &u, pkey->pkey.rsa) <= 0)
-					{
-					OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_LIB_RSA);
-					goto err;
-					}
-				s2n(u,p);
-				n+=u+2;
-				}
-			else
-			if (md)
-				{
-				size_t sig_len = EVP_PKEY_size(pkey);
+      /* Determine signature algorithm. */
+      if (SSL_USE_SIGALGS(s)) {
+        md = tls1_choose_signing_digest(s, pkey);
+        if (!tls12_get_sigandhash(p, pkey, md)) {
+          /* Should never happen */
+          al = SSL_AD_INTERNAL_ERROR;
+          OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange,
+                            ERR_R_INTERNAL_ERROR);
+          goto f_err;
+        }
+        p += 2;
+      } else if (pkey->type == EVP_PKEY_RSA) {
+        md = EVP_md5_sha1();
+      } else {
+        md = EVP_sha1();
+      }
 
-				/* send signature algorithm */
-				if (SSL_USE_SIGALGS(s))
-					{
-					if (!tls12_get_sigandhash(p, pkey, md))
-						{
-						/* Should never happen */
-						al=SSL_AD_INTERNAL_ERROR;
-						OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_R_INTERNAL_ERROR);
-						goto f_err;
-						}
-					p+=2;
-					}
-				if (!EVP_DigestSignInit(&md_ctx, NULL, md, NULL, pkey) ||
-					!EVP_DigestSignUpdate(&md_ctx, s->s3->client_random, SSL3_RANDOM_SIZE) ||
-					!EVP_DigestSignUpdate(&md_ctx, s->s3->server_random, SSL3_RANDOM_SIZE) ||
-					!EVP_DigestSignUpdate(&md_ctx, d, n) ||
-					!EVP_DigestSignFinal(&md_ctx, &p[2], &sig_len))
-					{
-					OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_LIB_EVP);
-					goto err;
-					}
-				s2n(sig_len, p);
-				n += sig_len + 2;
-				if (SSL_USE_SIGALGS(s))
-					n += 2;
-				}
-			else
-				{
-				/* Is this error check actually needed? */
-				al=SSL_AD_HANDSHAKE_FAILURE;
-				OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, SSL_R_UNKNOWN_PKEY_TYPE);
-				goto f_err;
-				}
-			}
+      if (!EVP_DigestSignInit(&md_ctx, NULL, md, NULL, pkey) ||
+          !EVP_DigestSignUpdate(&md_ctx, s->s3->client_random,
+                                SSL3_RANDOM_SIZE) ||
+          !EVP_DigestSignUpdate(&md_ctx, s->s3->server_random,
+                                SSL3_RANDOM_SIZE) ||
+          !EVP_DigestSignUpdate(&md_ctx, d, n) ||
+          !EVP_DigestSignFinal(&md_ctx, &p[2], &sig_len)) {
+        OPENSSL_PUT_ERROR(SSL, ssl3_send_server_key_exchange, ERR_LIB_EVP);
+        goto err;
+      }
 
-		ssl_set_handshake_header(s, SSL3_MT_SERVER_KEY_EXCHANGE, n);
-		}
+      s2n(sig_len, p);
+      n += sig_len + 2;
+      if (SSL_USE_SIGALGS(s)) {
+        n += 2;
+      }
+    }
 
-	s->state = SSL3_ST_SW_KEY_EXCH_B;
-	EVP_MD_CTX_cleanup(&md_ctx);
-	return ssl_do_write(s);
+    if (!ssl_set_handshake_header(s, SSL3_MT_SERVER_KEY_EXCHANGE, n)) {
+      goto err;
+    }
+  }
+
+  s->state = SSL3_ST_SW_KEY_EXCH_B;
+  EVP_MD_CTX_cleanup(&md_ctx);
+  return ssl_do_write(s);
+
 f_err:
 	ssl3_send_alert(s,SSL3_AL_FATAL,al);
 err:

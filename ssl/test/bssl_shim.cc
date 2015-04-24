@@ -258,12 +258,8 @@ static SSL_CTX *setup_ctx(const TestConfig *config) {
     SSL_CTX_set_read_ahead(ssl_ctx, 1);
   }
 
-  if (!SSL_CTX_set_ecdh_auto(ssl_ctx, 1)) {
-    goto err;
-  }
-
-  if (!SSL_CTX_set_cipher_list(ssl_ctx, "ALL")) {
-    goto err;
+  if (!SSL_CTX_set_cipher_list(ssl_ctx.get(), "ALL")) {
+    return nullptr;
   }
 
   dh = DH_get_2048_256(NULL);

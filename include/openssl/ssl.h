@@ -1622,69 +1622,76 @@ DECLARE_PEM_rw(SSL_SESSION, SSL_SESSION)
 #define SSL_CTRL_SET_MAX_SEND_FRAGMENT		52
 
 /* see tls1.h for macros based on these */
-#define SSL_CTRL_SET_TLSEXT_SERVERNAME_CB	53
-#define SSL_CTRL_SET_TLSEXT_SERVERNAME_ARG	54
-#define SSL_CTRL_SET_TLSEXT_HOSTNAME		55
-#define SSL_CTRL_SET_TLSEXT_DEBUG_CB		56
-#define SSL_CTRL_SET_TLSEXT_DEBUG_ARG		57
-#define SSL_CTRL_GET_TLSEXT_TICKET_KEYS		58
-#define SSL_CTRL_SET_TLSEXT_TICKET_KEYS		59
-#define SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB	63
-#define SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB_ARG	64
+#define SSL_CTRL_SET_TLSEXT_SERVERNAME_CB 53
+#define SSL_CTRL_SET_TLSEXT_SERVERNAME_ARG 54
+#define SSL_CTRL_SET_TLSEXT_HOSTNAME 55
+#define SSL_CTRL_SET_TLSEXT_DEBUG_CB 56
+#define SSL_CTRL_SET_TLSEXT_DEBUG_ARG 57
+#define SSL_CTRL_GET_TLSEXT_TICKET_KEYS 58
+#define SSL_CTRL_SET_TLSEXT_TICKET_KEYS 59
+#define SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB 63
+#define SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB_ARG 64
 
-#define SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB	72
+#define SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB 72
 
-#define SSL_CTRL_SET_TLS_EXT_SRP_USERNAME_CB	75
-#define SSL_CTRL_SET_SRP_VERIFY_PARAM_CB		76
-#define SSL_CTRL_SET_SRP_GIVE_CLIENT_PWD_CB		77
+#define SSL_CTRL_SET_TLS_EXT_SRP_USERNAME_CB 75
+#define SSL_CTRL_SET_SRP_VERIFY_PARAM_CB 76
+#define SSL_CTRL_SET_SRP_GIVE_CLIENT_PWD_CB 77
 
-#define SSL_CTRL_SET_SRP_ARG		78
-#define SSL_CTRL_SET_TLS_EXT_SRP_USERNAME		79
-#define SSL_CTRL_SET_TLS_EXT_SRP_STRENGTH		80
-#define SSL_CTRL_SET_TLS_EXT_SRP_PASSWORD		81
+#define SSL_CTRL_SET_SRP_ARG 78
+#define SSL_CTRL_SET_TLS_EXT_SRP_USERNAME 79
+#define SSL_CTRL_SET_TLS_EXT_SRP_STRENGTH 80
+#define SSL_CTRL_SET_TLS_EXT_SRP_PASSWORD 81
 
-#define DTLS_CTRL_GET_TIMEOUT		73
-#define DTLS_CTRL_HANDLE_TIMEOUT	74
-#define DTLS_CTRL_LISTEN			75
+#define DTLS_CTRL_GET_TIMEOUT 73
+#define DTLS_CTRL_HANDLE_TIMEOUT 74
 
-#define SSL_CTRL_GET_RI_SUPPORT			76
-#define SSL_CTRL_CLEAR_OPTIONS			77
-#define SSL_CTRL_CLEAR_MODE			78
+#define SSL_CTRL_GET_RI_SUPPORT 76
+#define SSL_CTRL_CLEAR_OPTIONS 77
+#define SSL_CTRL_CLEAR_MODE 78
 
-#define SSL_CTRL_GET_EXTRA_CHAIN_CERTS		82
-#define SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS	83
+#define SSL_CTRL_GET_EXTRA_CHAIN_CERTS 82
+#define SSL_CTRL_CLEAR_EXTRA_CHAIN_CERTS 83
 
-#define SSL_CTRL_CHAIN				88
-#define SSL_CTRL_CHAIN_CERT			89
+#define SSL_CTRL_CHAIN 88
+#define SSL_CTRL_CHAIN_CERT 89
 
-#define SSL_CTRL_GET_CURVES			90
-#define SSL_CTRL_SET_CURVES			91
-#define SSL_CTRL_SET_CURVES_LIST		92
-#define SSL_CTRL_SET_ECDH_AUTO			94
-#define SSL_CTRL_SET_SIGALGS			97
-#define SSL_CTRL_SET_SIGALGS_LIST		98
-#define SSL_CTRL_CERT_FLAGS			99
-#define SSL_CTRL_CLEAR_CERT_FLAGS		100
-#define SSL_CTRL_SET_CLIENT_SIGALGS		101
-#define SSL_CTRL_SET_CLIENT_SIGALGS_LIST	102
-#define SSL_CTRL_GET_CLIENT_CERT_TYPES		103
-#define SSL_CTRL_SET_CLIENT_CERT_TYPES		104
-#define SSL_CTRL_BUILD_CERT_CHAIN		105
-#define SSL_CTRL_SET_VERIFY_CERT_STORE		106
-#define SSL_CTRL_SET_CHAIN_CERT_STORE		107
-#define SSL_CTRL_GET_PEER_SIGNATURE_NID		108
-#define SSL_CTRL_GET_SERVER_TMP_KEY		109
-#define SSL_CTRL_GET_RAW_CIPHERLIST		110
-#define SSL_CTRL_GET_EC_POINT_FORMATS		111
+#define SSL_CTRL_GET_CURVES 90
+#define SSL_CTRL_SET_CURVES 91
+#define SSL_CTRL_SET_CURVES_LIST 92
+#define SSL_CTRL_SET_SIGALGS 97
+#define SSL_CTRL_SET_SIGALGS_LIST 98
+#define SSL_CTRL_CERT_FLAGS 99
+#define SSL_CTRL_CLEAR_CERT_FLAGS 100
+#define SSL_CTRL_SET_CLIENT_SIGALGS 101
+#define SSL_CTRL_SET_CLIENT_SIGALGS_LIST 102
+#define SSL_CTRL_GET_CLIENT_CERT_TYPES 103
+#define SSL_CTRL_SET_CLIENT_CERT_TYPES 104
+#define SSL_CTRL_BUILD_CERT_CHAIN 105
+#define SSL_CTRL_SET_VERIFY_CERT_STORE 106
+#define SSL_CTRL_SET_CHAIN_CERT_STORE 107
+#define SSL_CTRL_GET_SERVER_TMP_KEY 109
+#define SSL_CTRL_GET_RAW_CIPHERLIST 110
+#define SSL_CTRL_GET_EC_POINT_FORMATS 111
 
-#define SSL_CTRL_GET_CHAIN_CERTS		115
-#define SSL_CTRL_SELECT_CURRENT_CERT		116
+#define SSL_CTRL_GET_CHAIN_CERTS 115
+#define SSL_CTRL_SELECT_CURRENT_CERT 116
 
-#define SSL_CTRL_CHANNEL_ID			117
-#define SSL_CTRL_GET_CHANNEL_ID			118
-#define SSL_CTRL_SET_CHANNEL_ID			119
+#define SSL_CTRL_CHANNEL_ID 117
+#define SSL_CTRL_GET_CHANNEL_ID 118
+#define SSL_CTRL_SET_CHANNEL_ID 119
 
-#define SSL_CTRL_FALLBACK_SCSV			120
+/* DTLSv1_get_timeout queries the next DTLS handshake timeout. If there is a
+ * timeout in progress, it sets |*((OPENSSL_timeval*)arg)| to the time remaining
+ * and returns one. Otherwise, it returns zero.
+ *
+ * When the timeout expires, call |DTLSv1_handle_timeout| to handle the
+ * retransmit behavior.
+ *
+ * NOTE: This function must be queried again whenever the handshake state
+ * machine changes, including when |DTLSv1_handle_timeout| is called. */
+#define DTLSv1_get_timeout(ssl, arg) \
+  SSL_ctrl(ssl, DTLS_CTRL_GET_TIMEOUT, 0, (void *)arg)
 
 #define DTLSv1_get_timeout(ssl, arg) \
 	SSL_ctrl(ssl,DTLS_CTRL_GET_TIMEOUT,0, (void *)arg)
@@ -1703,28 +1710,39 @@ DECLARE_PEM_rw(SSL_SESSION, SSL_SESSION)
 	SSL_ctrl((ssl),SSL_CTRL_GET_TOTAL_RENEGOTIATIONS,0,NULL)
 
 #define SSL_CTX_need_tmp_RSA(ctx) \
-	SSL_CTX_ctrl(ctx,SSL_CTRL_NEED_TMP_RSA,0,NULL)
-#define SSL_CTX_set_tmp_rsa(ctx,rsa) \
-	SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_RSA,0,(char *)rsa)
-#define SSL_CTX_set_tmp_dh(ctx,dh) \
-	SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_DH,0,(char *)dh)
-#define SSL_CTX_set_tmp_ecdh(ctx,ecdh) \
-	SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TMP_ECDH,0,(char *)ecdh)
+  SSL_CTX_ctrl(ctx, SSL_CTRL_NEED_TMP_RSA, 0, NULL)
+#define SSL_CTX_set_tmp_rsa(ctx, rsa) \
+  SSL_CTX_ctrl(ctx, SSL_CTRL_SET_TMP_RSA, 0, (char *)rsa)
+#define SSL_CTX_set_tmp_dh(ctx, dh) \
+  SSL_CTX_ctrl(ctx, SSL_CTRL_SET_TMP_DH, 0, (char *)dh)
 
-#define SSL_need_tmp_RSA(ssl) \
-	SSL_ctrl(ssl,SSL_CTRL_NEED_TMP_RSA,0,NULL)
-#define SSL_set_tmp_rsa(ssl,rsa) \
-	SSL_ctrl(ssl,SSL_CTRL_SET_TMP_RSA,0,(char *)rsa)
-#define SSL_set_tmp_dh(ssl,dh) \
-	SSL_ctrl(ssl,SSL_CTRL_SET_TMP_DH,0,(char *)dh)
-#define SSL_set_tmp_ecdh(ssl,ecdh) \
-	SSL_ctrl(ssl,SSL_CTRL_SET_TMP_ECDH,0,(char *)ecdh)
+/* SSL_CTX_set_tmp_ecdh configures |ctx| to use the curve from |ecdh| (a const
+ * EC_KEY *) as the curve for ephemeral ECDH keys. For historical reasons, this
+ * API expects an |EC_KEY|, but only the curve is used. It returns one on
+ * success and zero on error. If unset, an appropriate curve will be chosen
+ * automatically. (This is recommended.) */
+#define SSL_CTX_set_tmp_ecdh(ctx, ecdh) \
+  SSL_CTX_ctrl(ctx, SSL_CTRL_SET_TMP_ECDH, 0, (char *)ecdh)
 
-/* SSL_enable_tls_channel_id either configures a TLS server to accept TLS client
- * IDs from clients, or configure a client to send TLS client IDs to server.
- * Returns 1 on success. */
-#define SSL_enable_tls_channel_id(s) \
-	SSL_ctrl(s,SSL_CTRL_CHANNEL_ID,0,NULL)
+#define SSL_need_tmp_RSA(ssl) SSL_ctrl(ssl, SSL_CTRL_NEED_TMP_RSA, 0, NULL)
+#define SSL_set_tmp_rsa(ssl, rsa) \
+  SSL_ctrl(ssl, SSL_CTRL_SET_TMP_RSA, 0, (char *)rsa)
+#define SSL_set_tmp_dh(ssl, dh) \
+  SSL_ctrl(ssl, SSL_CTRL_SET_TMP_DH, 0, (char *)dh)
+
+/* SSL_set_tmp_ecdh configures |ssl| to use the curve from |ecdh| (a const
+ * EC_KEY *) as the curve for ephemeral ECDH keys. For historical reasons, this
+ * API expects an |EC_KEY|, but only the curve is used. It returns one on
+ * success and zero on error. If unset, an appropriate curve will be chosen
+ * automatically. (This is recommended.) */
+#define SSL_set_tmp_ecdh(ssl, ecdh) \
+  SSL_ctrl(ssl, SSL_CTRL_SET_TMP_ECDH, 0, (char *)ecdh)
+
+/* SSL_enable_tls_channel_id either configures a TLS server to accept TLS
+ * client IDs from clients, or configure a client to send TLS client IDs to
+ * server. Returns 1 on success. */
+#define SSL_enable_tls_channel_id(s) SSL_ctrl(s, SSL_CTRL_CHANNEL_ID, 0, NULL)
+
 /* SSL_set1_tls_channel_id configures a TLS client to send a TLS Channel ID to
  * compatible servers. private_key must be a P-256 EVP_PKEY*. Returns 1 on
  * success. */
@@ -1810,11 +1828,7 @@ DECLARE_PEM_rw(SSL_SESSION, SSL_SESSION)
 #define SSL_set1_curves(ctx, clist, clistlen) \
 	SSL_ctrl(ctx,SSL_CTRL_SET_CURVES,clistlen,(char *)clist)
 #define SSL_set1_curves_list(ctx, s) \
-	SSL_ctrl(ctx,SSL_CTRL_SET_CURVES_LIST,0,(char *)s)
-#define SSL_CTX_set_ecdh_auto(ctx, onoff) \
-	SSL_CTX_ctrl(ctx,SSL_CTRL_SET_ECDH_AUTO,onoff,NULL)
-#define SSL_set_ecdh_auto(s, onoff) \
-	SSL_ctrl(s,SSL_CTRL_SET_ECDH_AUTO,onoff,NULL)
+  SSL_ctrl(ctx, SSL_CTRL_SET_CURVES_LIST, 0, (char *)s)
 
 #define SSL_CTX_set1_sigalgs(ctx, slist, slistlen) \
 	SSL_CTX_ctrl(ctx,SSL_CTRL_SET_SIGALGS,slistlen,(int *)slist)
@@ -2227,14 +2241,36 @@ OPENSSL_EXPORT void SSL_CTX_set_tmp_dh_callback(SSL_CTX *ctx,
 				 DH *(*dh)(SSL *ssl,int is_export,
 					   int keylength));
 OPENSSL_EXPORT void SSL_set_tmp_dh_callback(SSL *ssl,
-				 DH *(*dh)(SSL *ssl,int is_export,
-					   int keylength));
-OPENSSL_EXPORT void SSL_CTX_set_tmp_ecdh_callback(SSL_CTX *ctx,
-				 EC_KEY *(*ecdh)(SSL *ssl,int is_export,
-					   int keylength));
-OPENSSL_EXPORT void SSL_set_tmp_ecdh_callback(SSL *ssl,
-				 EC_KEY *(*ecdh)(SSL *ssl,int is_export,
-					   int keylength));
+                                            DH *(*dh)(SSL *ssl, int is_export,
+                                                      int keylength));
+
+/* SSL_CTX_set_tmp_ecdh_callback configures |ctx| to use |callback| to determine
+ * the curve for ephemeral ECDH keys. |callback| should ignore |is_export| and
+ * |keylength| and return an |EC_KEY| of the selected curve or NULL on
+ * error. Only the curve is used, so the |EC_KEY| needn't have a generated
+ * keypair.
+ *
+ * If the callback is unset, an appropriate curve will be chosen automatically.
+ * (This is recommended.)
+ *
+ * WARNING: The caller does not take ownership of the resulting |EC_KEY|, so
+ * |callback| must save and release the object elsewhere. */
+OPENSSL_EXPORT void SSL_CTX_set_tmp_ecdh_callback(
+    SSL_CTX *ctx, EC_KEY *(*callback)(SSL *ssl, int is_export, int keylength));
+
+/* SSL_set_tmp_ecdh_callback configures |ssl| to use |callback| to determine the
+ * curve for ephemeral ECDH keys. |callback| should ignore |is_export| and
+ * |keylength| and return an |EC_KEY| of the selected curve or NULL on
+ * error. Only the curve is used, so the |EC_KEY| needn't have a generated
+ * keypair.
+ *
+ * If the callback is unset, an appropriate curve will be chosen automatically.
+ * (This is recommended.)
+ *
+ * WARNING: The caller does not take ownership of the resulting |EC_KEY|, so
+ * |callback| must save and release the object elsewhere. */
+OPENSSL_EXPORT void SSL_set_tmp_ecdh_callback(
+    SSL *ssl, EC_KEY *(*callback)(SSL *ssl, int is_export, int keylength));
 
 OPENSSL_EXPORT const void *SSL_get_current_compression(SSL *s);
 OPENSSL_EXPORT const void *SSL_get_current_expansion(SSL *s);
@@ -2280,6 +2316,49 @@ OPENSSL_EXPORT const char *SSL_CIPHER_standard_name(const SSL_CIPHER *c);
 #endif
 
 OPENSSL_EXPORT void ERR_load_SSL_strings(void);
+
+/* SSL_get_cipher_by_value returns the structure representing a TLS cipher
+ * suite based on its assigned number, or NULL if unknown. See
+ * https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4. */
+OPENSSL_EXPORT const SSL_CIPHER *SSL_get_cipher_by_value(uint16_t value);
+
+/* SSL_get_rc4_state sets |*read_key| and |*write_key| to the RC4 states for
+ * the read and write directions. It returns one on success or zero if |ssl|
+ * isn't using an RC4-based cipher suite. */
+OPENSSL_EXPORT int SSL_get_rc4_state(const SSL *ssl, const RC4_KEY **read_key,
+                                     const RC4_KEY **write_key);
+
+
+/* Deprecated functions. */
+
+/* SSL_CTX_set_ecdh_auto returns one. */
+#define SSL_CTX_set_ecdh_auto(ctx, onoff) 1
+
+/* SSL_set_ecdh_auto returns one. */
+#define SSL_set_ecdh_auto(ssl, onoff) 1
+
+
+/* Android compatibility section.
+ *
+ * These functions are declared, temporarily, for Android because
+ * wpa_supplicant will take a little time to sync with upstream. Outside of
+ * Android they'll have no definition. */
+
+#define SSL_F_SSL_SET_SESSION_TICKET_EXT doesnt_exist
+
+OPENSSL_EXPORT int SSL_set_session_ticket_ext(SSL *s, void *ext_data,
+                                              int ext_len);
+OPENSSL_EXPORT int SSL_set_session_secret_cb(SSL *s, void *cb, void *arg);
+OPENSSL_EXPORT int SSL_set_session_ticket_ext_cb(SSL *s, void *cb, void *arg);
+OPENSSL_EXPORT int SSL_set_ssl_method(SSL *s, const SSL_METHOD *method);
+
+#define OPENSSL_VERSION_TEXT "BoringSSL"
+
+#define SSLEAY_VERSION 0
+
+/* SSLeay_version is a compatibility function that returns the string
+ * "BoringSSL". */
+OPENSSL_EXPORT const char *SSLeay_version(int unused);
 
 
 #ifdef  __cplusplus

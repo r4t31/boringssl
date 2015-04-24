@@ -407,8 +407,112 @@
 #define CERT_PRIVATE_KEY	2
 */
 
-#define PENDING_SESSION -10000
-#define CERTIFICATE_SELECTION_PENDING -10001
+typedef struct cert_pkey_st {
+  X509 *x509;
+  EVP_PKEY *privatekey;
+  /* Chain for this certificate */
+  STACK_OF(X509) * chain;
+} CERT_PKEY;
+
+typedef struct cert_st {
+  /* Current active set */
+  CERT_PKEY *key; /* ALWAYS points to an element of the pkeys array
+                   * Probably it would make more sense to store
+                   * an index, not a pointer. */
+
+  /* For clients the following masks are of *disabled* key and auth algorithms
+   * based on the current session.
+   *
+   * TODO(davidben): Remove these. They get checked twice: when sending the
+   * ClientHello and when processing the ServerHello. However, mask_ssl is a
+   * different value both times. mask_k and mask_a are not, but is a
+   * round-about way of checking the server's cipher was one of the advertised
+   * ones. (Currently it checks the masks and then the list of ciphers prior to
+   * applying the masks in ClientHello.) */
+  unsigned long mask_k;
+  unsigned long mask_a;
+  unsigned long mask_ssl;
+
+  DH *dh_tmp;
+  DH *(*dh_tmp_cb)(SSL *ssl, int is_export, int keysize);
+
+  /* ecdh_nid, if not |NID_undef|, is the NID of the curve to use for ephemeral
+   * ECDH keys. If unset, |ecdh_tmp_cb| is consulted. */
+  int ecdh_nid;
+  /* ecdh_tmp_cb is a callback for selecting the curve to use for ephemeral ECDH
+   * keys. If NULL, a curve is selected automatically. See
+   * |SSL_CTX_set_tmp_ecdh_callback|. */
+  EC_KEY *(*ecdh_tmp_cb)(SSL *ssl, int is_export, int keysize);
+
+  /* Flags related to certificates */
+  unsigned int cert_flags;
+  CERT_PKEY pkeys[SSL_PKEY_NUM];
+
+  /* Server-only: client_certificate_types is list of certificate types to
+   * include in the CertificateRequest message.
+   */
+  uint8_t *client_certificate_types;
+  size_t num_client_certificate_types;
+
+  /* signature algorithms peer reports: e.g. supported signature
+   * algorithms extension for server or as part of a certificate
+   * request for client. */
+  uint8_t *peer_sigalgs;
+  /* Size of above array */
+  size_t peer_sigalgslen;
+  /* suppported signature algorithms.
+   * When set on a client this is sent in the client hello as the
+   * supported signature algorithms extension. For servers
+   * it represents the signature algorithms we are willing to use. */
+  uint8_t *conf_sigalgs;
+  /* Size of above array */
+  size_t conf_sigalgslen;
+  /* Client authentication signature algorithms, if not set then
+   * uses conf_sigalgs. On servers these will be the signature
+   * algorithms sent to the client in a cerificate request for TLS 1.2.
+   * On a client this represents the signature algortithms we are
+   * willing to use for client authentication. */
+  uint8_t *client_sigalgs;
+  /* Size of above array */
+  size_t client_sigalgslen;
+  /* Signature algorithms shared by client and server: cached
+   * because these are used most often. */
+  TLS_SIGALGS *shared_sigalgs;
+  size_t shared_sigalgslen;
+
+  /* Certificate setup callback: if set is called whenever a
+   * certificate may be required (client or server). the callback
+   * can then examine any appropriate parameters and setup any
+   * certificates required. This allows advanced applications
+   * to select certificates on the fly: for example based on
+   * supported signature algorithms or curves. */
+  int (*cert_cb)(SSL *ssl, void *arg);
+  void *cert_cb_arg;
+
+  /* Optional X509_STORE for chain building or certificate validation
+   * If NULL the parent SSL_CTX store is used instead. */
+  X509_STORE *chain_store;
+  X509_STORE *verify_store;
+
+  /* Raw values of the cipher list from a client */
+  uint8_t *ciphers_raw;
+  size_t ciphers_rawlen;
+} CERT;
+
+typedef struct sess_cert_st {
+  STACK_OF(X509) * cert_chain; /* as received from peer (not for SSL2) */
+
+  /* The 'peer_...' members are used only by clients. */
+  int peer_cert_type;
+
+  CERT_PKEY *peer_key; /* points to an element of peer_pkeys (never NULL!) */
+  CERT_PKEY peer_pkeys[SSL_PKEY_NUM];
+  /* Obviously we don't have the private keys of these,
+   * so maybe we shouldn't even use the CERT_PKEY type here. */
+
+  DH *peer_dh_tmp;
+  EC_KEY *peer_ecdh_tmp;
+} SESS_CERT;
 
 /* From ECC-TLS draft, used in encoding the curve type in 
  * ECParameters
