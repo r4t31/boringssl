@@ -94,9 +94,19 @@ static int rsa_pub_decode(EVP_PKEY *pkey, X509_PUBKEY *pubkey) {
   if (!X509_PUBKEY_get0_param(NULL, &p, &pklen, NULL, pubkey)) {
     return 0;
   }
-  rsa = d2i_RSAPublicKey(NULL, &p, pklen);
-  if (rsa == NULL) {
-    OPENSSL_PUT_ERROR(EVP, rsa_pub_decode, ERR_R_RSA_LIB);
+
+  /* Estonian IDs issued between September 2014 to September 2015 are
+   * broken. See https://crbug.com/532048 and https://crbug.com/534766.
+   *
+   * TODO(davidben): Switch this to the strict version in March 2016 or when
+   * Chromium can force client certificates down a different codepath, whichever
+   * comes first. */
+  CBS cbs;
+  CBS_init(&cbs, p, pklen);
+  RSA *rsa = RSA_parse_public_key_buggy(&cbs);
+  if (rsa == NULL || CBS_len(&cbs) != 0) {
+    OPENSSL_PUT_ERROR(EVP, EVP_R_DECODE_ERROR);
+    RSA_free(rsa);
     return 0;
   }
   EVP_PKEY_assign_RSA(pkey, rsa);

@@ -61,13 +61,193 @@
 #include "internal.h"
 
 
-/* Override the default free and new methods */
-static int rsa_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
-                  void *exarg) {
-  if (operation == ASN1_OP_NEW_PRE) {
-    *pval = (ASN1_VALUE *)RSA_new();
-    if (*pval) {
-      return 2;
+static int parse_integer_buggy(CBS *cbs, BIGNUM **out, int buggy) {
+  assert(*out == NULL);
+  *out = BN_new();
+  if (*out == NULL) {
+    return 0;
+  }
+  if (buggy) {
+    return BN_cbs2unsigned_buggy(cbs, *out);
+  }
+  return BN_cbs2unsigned(cbs, *out);
+}
+
+static int parse_integer(CBS *cbs, BIGNUM **out) {
+  return parse_integer_buggy(cbs, out, 0 /* not buggy */);
+}
+
+static int marshal_integer(CBB *cbb, BIGNUM *bn) {
+  if (bn == NULL) {
+    /* An RSA object may be missing some components. */
+    OPENSSL_PUT_ERROR(RSA, RSA_R_VALUE_MISSING);
+    return 0;
+  }
+  return BN_bn2cbb(cbb, bn);
+}
+
+static RSA *parse_public_key(CBS *cbs, int buggy) {
+  RSA *ret = RSA_new();
+  if (ret == NULL) {
+    return NULL;
+  }
+  CBS child;
+  if (!CBS_get_asn1(cbs, &child, CBS_ASN1_SEQUENCE) ||
+      !parse_integer_buggy(&child, &ret->n, buggy) ||
+      !parse_integer(&child, &ret->e) ||
+      CBS_len(&child) != 0) {
+    OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_ENCODING);
+    RSA_free(ret);
+    return NULL;
+  }
+  return ret;
+}
+
+RSA *RSA_parse_public_key(CBS *cbs) {
+  return parse_public_key(cbs, 0 /* not buggy */);
+}
+
+RSA *RSA_parse_public_key_buggy(CBS *cbs) {
+  /* Estonian IDs issued between September 2014 to September 2015 are
+   * broken. See https://crbug.com/532048 and https://crbug.com/534766.
+   *
+   * TODO(davidben): Remove this code and callers in March 2016. */
+  return parse_public_key(cbs, 1 /* buggy */);
+}
+
+RSA *RSA_public_key_from_bytes(const uint8_t *in, size_t in_len) {
+  CBS cbs;
+  CBS_init(&cbs, in, in_len);
+  RSA *ret = RSA_parse_public_key(&cbs);
+  if (ret == NULL || CBS_len(&cbs) != 0) {
+    OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_ENCODING);
+    RSA_free(ret);
+    return NULL;
+  }
+  return ret;
+}
+
+int RSA_marshal_public_key(CBB *cbb, const RSA *rsa) {
+  CBB child;
+  if (!CBB_add_asn1(cbb, &child, CBS_ASN1_SEQUENCE) ||
+      !marshal_integer(&child, rsa->n) ||
+      !marshal_integer(&child, rsa->e) ||
+      !CBB_flush(cbb)) {
+    OPENSSL_PUT_ERROR(RSA, RSA_R_ENCODE_ERROR);
+    return 0;
+  }
+  return 1;
+}
+
+int RSA_public_key_to_bytes(uint8_t **out_bytes, size_t *out_len,
+                            const RSA *rsa) {
+  CBB cbb;
+  CBB_zero(&cbb);
+  if (!CBB_init(&cbb, 0) ||
+      !RSA_marshal_public_key(&cbb, rsa) ||
+      !CBB_finish(&cbb, out_bytes, out_len)) {
+    OPENSSL_PUT_ERROR(RSA, RSA_R_ENCODE_ERROR);
+    CBB_cleanup(&cbb);
+    return 0;
+  }
+  return 1;
+}
+
+/* kVersionTwoPrime and kVersionMulti are the supported values of the version
+ * field of an RSAPrivateKey structure (RFC 3447). */
+static const uint64_t kVersionTwoPrime = 0;
+static const uint64_t kVersionMulti = 1;
+
+/* rsa_parse_additional_prime parses a DER-encoded OtherPrimeInfo from |cbs| and
+ * advances |cbs|. It returns a newly-allocated |RSA_additional_prime| on
+ * success or NULL on error. The |r| and |method_mod| fields of the result are
+ * set to NULL. */
+static RSA_additional_prime *rsa_parse_additional_prime(CBS *cbs) {
+  RSA_additional_prime *ret = OPENSSL_malloc(sizeof(RSA_additional_prime));
+  if (ret == NULL) {
+    OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
+    return 0;
+  }
+  memset(ret, 0, sizeof(RSA_additional_prime));
+
+  CBS child;
+  if (!CBS_get_asn1(cbs, &child, CBS_ASN1_SEQUENCE) ||
+      !parse_integer(&child, &ret->prime) ||
+      !parse_integer(&child, &ret->exp) ||
+      !parse_integer(&child, &ret->coeff) ||
+      CBS_len(&child) != 0) {
+    OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_ENCODING);
+    RSA_additional_prime_free(ret);
+    return NULL;
+  }
+
+  return ret;
+}
+
+RSA *RSA_parse_private_key(CBS *cbs) {
+  BN_CTX *ctx = NULL;
+  BIGNUM *product_of_primes_so_far = NULL;
+  RSA *ret = RSA_new();
+  if (ret == NULL) {
+    return NULL;
+  }
+
+  CBS child;
+  uint64_t version;
+  if (!CBS_get_asn1(cbs, &child, CBS_ASN1_SEQUENCE) ||
+      !CBS_get_asn1_uint64(&child, &version) ||
+      (version != kVersionTwoPrime && version != kVersionMulti) ||
+      !parse_integer(&child, &ret->n) ||
+      !parse_integer(&child, &ret->e) ||
+      !parse_integer(&child, &ret->d) ||
+      !parse_integer(&child, &ret->p) ||
+      !parse_integer(&child, &ret->q) ||
+      !parse_integer(&child, &ret->dmp1) ||
+      !parse_integer(&child, &ret->dmq1) ||
+      !parse_integer(&child, &ret->iqmp)) {
+    OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_VERSION);
+    goto err;
+  }
+
+  /* Multi-prime RSA requires a newer version. */
+  if (version == kVersionMulti &&
+      CBS_peek_asn1_tag(&child, CBS_ASN1_SEQUENCE)) {
+    CBS other_prime_infos;
+    if (!CBS_get_asn1(&child, &other_prime_infos, CBS_ASN1_SEQUENCE) ||
+        CBS_len(&other_prime_infos) == 0) {
+      OPENSSL_PUT_ERROR(RSA, RSA_R_BAD_ENCODING);
+      goto err;
+    }
+    ret->additional_primes = sk_RSA_additional_prime_new_null();
+    if (ret->additional_primes == NULL) {
+      OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
+      goto err;
+    }
+
+    ctx = BN_CTX_new();
+    product_of_primes_so_far = BN_new();
+    if (ctx == NULL ||
+        product_of_primes_so_far == NULL ||
+        !BN_mul(product_of_primes_so_far, ret->p, ret->q, ctx)) {
+      goto err;
+    }
+
+    while (CBS_len(&other_prime_infos) > 0) {
+      RSA_additional_prime *ap = rsa_parse_additional_prime(&other_prime_infos);
+      if (ap == NULL) {
+        goto err;
+      }
+      if (!sk_RSA_additional_prime_push(ret->additional_primes, ap)) {
+        OPENSSL_PUT_ERROR(RSA, ERR_R_MALLOC_FAILURE);
+        RSA_additional_prime_free(ap);
+        goto err;
+      }
+      ap->r = BN_dup(product_of_primes_so_far);
+      if (ap->r == NULL ||
+          !BN_mul(product_of_primes_so_far, product_of_primes_so_far,
+                  ap->prime, ctx)) {
+        goto err;
+      }
     }
     return 0;
   } else if (operation == ASN1_OP_FREE_PRE) {

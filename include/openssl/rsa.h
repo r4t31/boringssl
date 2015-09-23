@@ -285,6 +285,56 @@ OPENSSL_EXPORT int RSA_recover_crt_params(RSA *rsa);
 
 /* ASN.1 functions. */
 
+/* RSA_parse_public_key parses a DER-encoded RSAPublicKey structure (RFC 3447)
+ * from |cbs| and advances |cbs|. It returns a newly-allocated |RSA| or NULL on
+ * error. */
+OPENSSL_EXPORT RSA *RSA_parse_public_key(CBS *cbs);
+
+/* RSA_parse_public_key_buggy behaves like |RSA_parse_public_key|, but it
+ * tolerates some invalid encodings. Do not use this function. */
+OPENSSL_EXPORT RSA *RSA_parse_public_key_buggy(CBS *cbs);
+
+/* RSA_public_key_from_bytes parses |in| as a DER-encoded RSAPublicKey structure
+ * (RFC 3447). It returns a newly-allocated |RSA| or NULL on error. */
+OPENSSL_EXPORT RSA *RSA_public_key_from_bytes(const uint8_t *in, size_t in_len);
+
+/* RSA_marshal_public_key marshals |rsa| as a DER-encoded RSAPublicKey structure
+ * (RFC 3447) and appends the result to |cbb|. It returns one on success and
+ * zero on failure. */
+OPENSSL_EXPORT int RSA_marshal_public_key(CBB *cbb, const RSA *rsa);
+
+/* RSA_public_key_to_bytes marshals |rsa| as a DER-encoded RSAPublicKey
+ * structure (RFC 3447) and, on success, sets |*out_bytes| to a newly allocated
+ * buffer containing the result and returns one. Otherwise, it returns zero. The
+ * result should be freed with |OPENSSL_free|. */
+OPENSSL_EXPORT int RSA_public_key_to_bytes(uint8_t **out_bytes, size_t *out_len,
+                                           const RSA *rsa);
+
+/* RSA_parse_private_key parses a DER-encoded RSAPrivateKey structure (RFC 3447)
+ * from |cbs| and advances |cbs|. It returns a newly-allocated |RSA| or NULL on
+ * error. */
+OPENSSL_EXPORT RSA *RSA_parse_private_key(CBS *cbs);
+
+/* RSA_private_key_from_bytes parses |in| as a DER-encoded RSAPrivateKey
+ * structure (RFC 3447). It returns a newly-allocated |RSA| or NULL on error. */
+OPENSSL_EXPORT RSA *RSA_private_key_from_bytes(const uint8_t *in,
+                                               size_t in_len);
+
+/* RSA_marshal_private_key marshals |rsa| as a DER-encoded RSAPrivateKey
+ * structure (RFC 3447) and appends the result to |cbb|. It returns one on
+ * success and zero on failure. */
+OPENSSL_EXPORT int RSA_marshal_private_key(CBB *cbb, const RSA *rsa);
+
+/* RSA_private_key_to_bytes marshals |rsa| as a DER-encoded RSAPrivateKey
+ * structure (RFC 3447) and, on success, sets |*out_bytes| to a newly allocated
+ * buffer containing the result and returns one. Otherwise, it returns zero. The
+ * result should be freed with |OPENSSL_free|. */
+OPENSSL_EXPORT int RSA_private_key_to_bytes(uint8_t **out_bytes,
+                                            size_t *out_len, const RSA *rsa);
+
+
+/* Deprecated functions. */
+
 /* d2i_RSAPublicKey parses an ASN.1, DER-encoded, RSA public key from |len|
  * bytes at |*inp|. If |out| is not NULL then, on exit, a pointer to the result
  * is in |*out|. If |*out| is already non-NULL on entry then the result is

@@ -284,6 +284,21 @@ OPENSSL_EXPORT int BN_print_fp(FILE *fp, const BIGNUM *a);
 OPENSSL_EXPORT BN_ULONG BN_get_word(const BIGNUM *bn);
 
 
+/* ASN.1 functions. */
+
+/* BN_cbs2unsigned parses a non-negative DER INTEGER from |cbs| writes the
+ * result to |ret|. It returns one on success and zero on failure. */
+OPENSSL_EXPORT int BN_cbs2unsigned(CBS *cbs, BIGNUM *ret);
+
+/* BN_cbs2unsigned_buggy acts like |BN_cbs2unsigned| but tolerates some invalid
+ * encodings. Do not use this function. */
+OPENSSL_EXPORT int BN_cbs2unsigned_buggy(CBS *cbs, BIGNUM *ret);
+
+/* BN_bn2cbb marshals |bn| as a non-negative DER INTEGER and appends the result
+ * to |cbb|. It returns one on success and zero on failure. */
+OPENSSL_EXPORT int BN_bn2cbb(CBB *cbb, const BIGNUM *bn);
+
+
 /* Internal functions.
  *
  * These functions are useful for code that is doing low-level manipulations of
