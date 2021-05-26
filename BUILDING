@@ -27,7 +27,7 @@ headers.
 
 To build on Windows, Yasm[2] is required for assembly. Either ensure yasm.exe
 is in %PATH% or configure CMAKE_ASM_NASM_COMPILER appropriately. Note that
-full Windows support is still in progress.
+full Windows support is still in progress. Test
 
 [1] http://martine.github.io/ninja/
 [2] http://yasm.tortall.net/
